@@ -1,0 +1,11 @@
+ gcc -o evoshort -O2 -ansi -pedantic  -Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Wshadow src/example_short.c src/cmaes.c -lm
+ gcc -o evobounds -O2 -ansi -pedantic  -Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Wshadow src/example_boundary.c src/boundary_transformation.c src/cmaes.c -lm
+ gcc -o evorestarts -O2 -ansi -pedantic  -Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Wshadow src/example_restarts.c src/cmaes.c -lm
+# gcc -o evonnoise -O2 -ansi -pedantic  -Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Wshadow src/example_noise.c src/cmaes.c -lm
+
+# -Wconversion gives unfortunately a warning if int instead of long is passed to a function
+# -pg : gnu profiler for gprof 
+# -g: debugger
+# -pedantic-errors: like pedantic, except that errors are produced instead of warnings
+# -c : compile only
+
