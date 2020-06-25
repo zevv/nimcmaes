@@ -15,13 +15,13 @@ type
     fitfun: FitFun
     funVals: ptr cdouble
     stopReason: string
+    xbest: seq[float]
 
 
 
 proc newCmaes*(xstart: openArray[float], stddev: openArray[float], fitFun: FitFun): Cmaes =
 
   doAssert xstart.len == stddev.len
-
 
   var xstartc, stddevc: seq[cdouble]
   for v in xstart: xstartc.add v.cdouble
@@ -35,7 +35,7 @@ proc newCmaes*(xstart: openArray[float], stddev: openArray[float], fitFun: FitFu
   result = c
 
 
-proc run*(c: Cmaes): seq[float] =
+proc run*(c: Cmaes) =
     
   var vs = newSeq[float](c.dim)
   let funvals = cast[CDoubleArray1D](c.funvals)
@@ -48,15 +48,28 @@ proc run*(c: Cmaes): seq[float] =
     for i in 0..<popSize:
       for j in 0..<c.dim:
         vs[j] = pop[i][j]
-
       funVals[i] = c.fitfun(vs)
 
     discard cmaes_UpdateDistribution(c.evo.addr, c.funVals)
   
-  c.stopReason = $cmaes_TestForTermination(c.evo.addr)
-    
   let xmean = cast[CDoubleArray1D](cmaes_GetNew(c.evo.addr, "xmean"))
-  result.setlen c.dim
+  
   for i in 0..<c.dim:
-    result[i] = xmean[i]
+    c.xbest.add  xmean[i]
+  
+  c.stopReason = $cmaes_TestForTermination(c.evo.addr)
+
+
+proc xbest*(c: Cmaes): seq[float] =
+  return c.xbest
+
+
+proc stopReason*(c: Cmaes): string =
+  return c.stopReason
+
+
+proc cmaesRun*(xstart: openArray[float], stddev: openArray[float], fitFun: FitFun): seq[float] =
+  let cmaes = newCmaes(xstart, stddev, fitFun)
+  cmaes.run()
+  return cmaes.xbest
 
