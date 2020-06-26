@@ -10,6 +10,9 @@ This is a minimal Nim binding for the C-CMA-ES library
 
 ![CMA-ES](/doc/cmaes.gif)
 
+- http://cma.gforge.inria.fr/cmaesintro.html
+- http://cma.gforge.inria.fr/cmaes_sourcecode_page.html
+- https://github.com/cma-es/c-cmaes
 
 ## Introduction
 
