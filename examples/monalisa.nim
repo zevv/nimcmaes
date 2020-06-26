@@ -1,5 +1,6 @@
 
 import nimcmaes
+import strformat
 import times
 import os
 import strscans
@@ -11,23 +12,20 @@ import math
 type
   Ppm = ref object
     w, h: int
-    data: seq[float]
+    data: seq[uint8]
 
   Color = object
-    r, g, b, a: float
+    r, g, b, a: uint8
 
+
+proc initColor(r, g, b, a: uint8): Color =
+  result.r = r.clamp(0, 255)
+  result.g = g.clamp(0, 255)
+  result.b = b.clamp(0, 255)
+  result.a = a.clamp(0, 255)
 
 proc initColor(r, g, b, a: float): Color =
-  result.r = r.clamp(0.0, 1.0)
-  result.g = g.clamp(0.0, 1.0)
-  result.b = b.clamp(0.0, 1.0)
-  result.a = a.clamp(0.0, 1.0)
-
-proc newPpm(): Ppm =
-  Ppm()
-
-proc newPpm(w, h: int): Ppm =
-  Ppm(w: w, h: h, data: newSeq[float](w * h * 3))
+  initColor(uint8(r * 255), uint8(g * 255), uint8(b * 255), uint8(a * 255))
 
 proc copyInto(pin, pout: Ppm) =
   pout.w = pin.w
@@ -40,39 +38,41 @@ proc read(ppm: Ppm, fname: string) =
   let size = fd.readLine()
   let depth = fd.readLine()
   doAssert scanf(size, "$i $i", ppm.w, ppm.h)
-  let n = ppm.w * 3
-  var tmp = newSeq[uint8](n)
-  for y in 0..<ppm.h:
-    doAssert fd.readBytes(tmp, 0, n) == n
-    for x in 0..<n:
-      ppm.data.add tmp[x].float / 255.0
+  let n = ppm.w * ppm.h * 3
+  ppm.data.setlen(n)
+  doAssert fd.readBytes(ppm.data, 0, n) == n
   fd.close()
 
 proc write(ppm: Ppm, fname: string) =
   let fd = open(fname, fmWrite)
-  fd.write("P6\n")
-  fd.write($ppm.w & " " & $ppm.h & "\n")
-  fd.write("255\n")
-  let n = ppm.w * 3
-  var tmp = newSeq[uint8](n)
-  for y in 0..<ppm.h:
-    for x in 0..<n:
-      tmp[x] = uint8(ppm.data[x + y*n] * 255.0)
-    doAssert fd.writeBytes(tmp, 0, n) == n
+  fd.write(&"P6\n{ppm.w} {ppm.h}\n255\n")
+  let n = ppm.w * ppm.h * 3
+  doAssert fd.writeBytes(ppm.data, 0, n) == n
   fd.close()
 
+proc newPpm(): Ppm =
+  Ppm()
+
+proc newPpm(w, h: int): Ppm =
+  Ppm(w: w, h: h, data: newSeq[uint8](w * h * 3))
+
+proc newPpm(fname: string): Ppm =
+  new result
+  result.read(fname)
 
 proc clear(p: Ppm) =
   for i in 0 ..< p.w * p.h * 3:
-    p.data[i] = 0.0
+    p.data[i] = 0
 
 proc set(p: Ppm, x, y: int, c: Color) =
   if x >= 0 and x < p.w and y >= 0 and y < p.h:
-    let o = (p.w * y + x) * 3
-    let (a0, a1) = (c.a, 1.0 - c.a)
-    p.data[o+0] = p.data[o+0]*a1 + c.r*a0
-    p.data[o+1] = p.data[o+1]*a1 + c.g*a0
-    p.data[o+2] = p.data[o+2]*a1 + c.b*a0
+    let 
+      o = (p.w * y + x) * 3
+      a0 = c.a.int
+      a1 = 255 - a0
+    p.data[o+0] = ((p.data[o+0].int * a1 + c.r.int * a0) /% 255).uint8
+    p.data[o+1] = ((p.data[o+1].int * a1 + c.g.int * a0) /% 255).uint8
+    p.data[o+2] = ((p.data[o+2].int * a1 + c.b.int * a0) /% 255).uint8
 
 proc get(p: Ppm, x, y: int): Color =
   if x >= 0 and x < p.w and y >= 0 and y < p.h:
@@ -80,7 +80,7 @@ proc get(p: Ppm, x, y: int): Color =
     result.r = p.data[o+0]
     result.g = p.data[o+1]
     result.b = p.data[o+2]
-    result.a = 1.0
+    result.a = 255
 
 proc box(p: Ppm, x, y, w, h: int, c: Color) =
   #echo "box ", x, ",", y, " | ", w, ",", h, " | ", $c
@@ -90,23 +90,27 @@ proc box(p: Ppm, x, y, w, h: int, c: Color) =
 
 # Calculate the difference between two colors
 
-proc `-`(c1, c2: Color): float =
-  sqrt(pow(c1.r - c2.r, 2) + pow(c1.g - c2.g, 2) + pow(c1.b - c2.b, 2))
+proc `-`(c1, c2: Color): int =
+  abs(c1.r.int - c2.r.int) + abs(c1.g.int - c2.g.int) + abs(c1.b.int - c2.b.int)
 
 # Calculate the difference between two images
 
-proc `-`(p1, p2: Ppm): float =
+proc `-`(p1, p2: Ppm): int =
   doAssert p1.w == p2.w
   doAssert p1.h == p2.h
-  var err: float
-  for y in 0 ..< p1.h:
-    for x in 0 ..< p1.w:
-      err += pow(p1.get(x, y) - p2.get(x, y), 2)
-  return sqrt(err)
+  
+  var dLine = newSeq[int](p2.h)
+
+  var y = 0
+  while y < p1.h:
+    var x = 0
+    while x < p1.w:
+      result += abs(p1.get(x, y) - p2.get(x, y))
+      inc x, 2
+    inc y, 2
 
 
-let mona = newPpm()
-mona.read("monalisa.ppm")
+let mona = newPpm("monalisa.ppm")
 
 let cur = newPpm(mona.w, mona.h)
 #cur.box(10, 10, 200, 200, initColor(0.0, 1.0, 0.0, 1.0))
@@ -131,21 +135,31 @@ proc fitFun(v: openArray[float]): float =
     initColor(bt(v[4]), bt(v[5]), bt(v[6]), bt(v[7]))
   )
 
-  result = mona - test
-  sleep 5
+  result = sqrt(float(mona - test))
   #echo result
 
 
 # Run the CMAES algorithm
+
+var n = 0
+var fitmin = float.high
 
 while true:
 
   let
     start  = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]  # These are the start values
     stddev = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # And the expected standard deviation
+  
+  let cmaes = newCmaes(start, stddev, fitFun)
+  cmaes.run()
 
-  let xbest = cmaesRun(start, stddev, fitFun)
-  echo xbest
+  let fit = cmaes.fbest
 
-  test.copyInto(cur)
-  cur.write("out.ppm")
+  if fit < fitmin:
+    echo fit
+    discard fitFun(cmaes.xbest)
+    test.copyInto(cur)
+    let fname = &"out-{n:05d}.ppm"
+    cur.write(fname)
+    inc n
+    fitmin = fit
