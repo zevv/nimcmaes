@@ -149,12 +149,12 @@ type
 proc cmaes_init*(a1: ptr cmaes_t; dimension: cint; xstart: ptr cdouble;
                 stddev: ptr cdouble; seed: clong; lambda: cint;
                 input_parameter_filename: cstring): ptr cdouble {.importc.}
-#proc cmaes_init_para*(a1: ptr cmaes_t; dimension: cint; xstart: ptr cdouble;
-#                     stddev: ptr cdouble; seed: clong; lambda: cint;
-#                     input_parameter_filename: cstring)
-#proc cmaes_init_final*(a1: ptr cmaes_t): ptr cdouble
+proc cmaes_init_para*(a1: ptr cmaes_t; dimension: cint; xstart: ptr cdouble;
+                     stddev: ptr cdouble; seed: clong; lambda: cint;
+                     input_parameter_filename: cstring) {.importc.}
+proc cmaes_init_final*(a1: ptr cmaes_t): ptr cdouble {.importc.}
 #proc cmaes_resume_distribution*(evo_ptr: ptr cmaes_t; filename: cstring)
-#proc cmaes_exit*(a1: ptr cmaes_t)
+proc cmaes_exit*(a1: ptr cmaes_t) {.importc.}
 ###  --- core functions ---
 #
 proc cmaes_SamplePopulation*(a1: ptr cmaes_t): ptr ptr cdouble {.importc.}

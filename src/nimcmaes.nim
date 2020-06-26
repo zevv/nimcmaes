@@ -1,5 +1,6 @@
 
 import cmaes_api
+import os
 import sequtils
 
 type
@@ -30,7 +31,12 @@ proc newCmaes*(xstart: openArray[float], stddev: openArray[float], fitFun: FitFu
   let c = new Cmaes
   c.dim = xstart.len
   c.fitFun = fitFun
-  c.funVals = cmaes_init(addr c.evo, c.dim.cint, xstartc[0].addr, stddevc[0].addr, 0, 0, "non")
+  
+  cmaes_init_para(addr c.evo, c.dim.cint, xstartc[0].addr, stddevc[0].addr, 0, 0, "non")
+
+  c.evo.sp.stopTolFun = 1.0e-2
+  
+  c.funVals = cmaes_init_final(addr c.evo)
 
   result = c
 
@@ -58,6 +64,8 @@ proc run*(c: Cmaes) =
     c.xbest.add  xmean[i]
   
   c.stopReason = $cmaes_TestForTermination(c.evo.addr)
+
+  cmaes_exit(c.evo.addr)
 
 
 proc xbest*(c: Cmaes): seq[float] =
