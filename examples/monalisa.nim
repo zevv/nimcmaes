@@ -135,7 +135,7 @@ proc fitFun(v: openArray[float]): float =
     initColor(bt(v[4]), bt(v[5]), bt(v[6]), bt(v[7]))
   )
 
-  result = sqrt(float(mona - test))
+  result = log2(float(mona - test))
   #echo result
 
 
